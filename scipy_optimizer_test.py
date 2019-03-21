@@ -7,10 +7,10 @@ import numpy as np
 import numpy.testing
 
 import tensorflow as tf
-from tensorflow.python import keras
-from tensorflow.keras.layers import *
-from tensorflow.keras.models import Sequential, Model
-from tensorflow.keras import backend as K
+from tensorflow import keras
+from tensorflow.keras.layers import Embedding, Dense, Dot, Input, Lambda # pylint: disable=import-error
+from tensorflow.keras.models import Sequential, Model # pylint: disable=import-error
+from tensorflow.keras import backend as K # pylint: disable=import-error
 
 from scipy.sparse import dok_matrix
 from sklearn.metrics.pairwise import cosine_similarity
@@ -96,7 +96,7 @@ class ScipyOptimizerTest(unittest.TestCase):
             outputs[i] = fn(inputs[i, :])
 
         opt = ScipyOptimizer(model)
-        result = opt.fit(inputs, outputs, epochs=20, verbose=False)
+        result, _ = opt.fit(inputs, outputs, epochs=20, verbose=False)
         self.assertTrue(result['success'])
 
         layers = [layer for layer in model._layers if layer.weights]
@@ -133,7 +133,7 @@ class ScipyOptimizerTest(unittest.TestCase):
         generator = test_generator(matrix.tocoo())
         model = make_embedding_model(matrix.shape, 3)
         opt = ScipyOptimizer(model)
-        result = opt.fit_generator(generator, epochs=200, verbose=False)
+        result, _ = opt.fit_generator(generator, epochs=200, verbose=False)
         self.assertLess(result['fun'], 1.0e-3)
 
 
