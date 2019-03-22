@@ -152,7 +152,7 @@ class ScipyOptimizer(object):
     def fit_generator(self, generator, method='cg', epochs=1, callbacks=None, verbose=True):
         x0 = self._collect_weights()
         history = History()
-        _callbacks = [BaseLogger(stateful_metrics=self._model.stateful_metric_names)]
+        _callbacks = [BaseLogger(stateful_metrics=self._model.metrics_names)]
         _callbacks += (callbacks or []) + [history]
         callback_list = CallbackList(_callbacks)
         callback_list.set_model(self._model)
