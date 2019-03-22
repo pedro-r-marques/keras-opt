@@ -1,16 +1,18 @@
 import numpy as np
 from scipy.optimize import minimize
 from tensorflow import keras
-from tensorflow.keras import backend as K # pylint: disable=import-error
-from tensorflow.python.keras.callbacks import BaseLogger, CallbackList, History # pylint: disable=no-name-in-module
+from tensorflow.keras import backend as K  # pylint: disable=import-error
+from tensorflow.python.keras.callbacks import BaseLogger, CallbackList, History  # pylint: disable=no-name-in-module
 
 from tqdm import trange, tqdm_notebook
+
 
 class GradientObserver(keras.optimizers.Optimizer):
     """
     Implements the Keras Optimizer interface in order to accumulate gradients for
     each mini batch. Gradients are then read at the end of the epoch by the ScipyOptimizer. 
     """
+
     def __init__(self):
         self._vars = []
 
@@ -48,20 +50,25 @@ class GeneratorWrapper(keras.utils.Sequence):
     """
     Converts fit() into fit_generator() interface.
     """
+
     def __init__(self, inputs, outputs):
         self._inputs = inputs
         self._outputs = outputs
+
     def __len__(self):
         return 1
+
     def __getitem__(self, index):
         assert index == 0
         return self._inputs, self._outputs
+
 
 class ScipyOptimizer(object):
     """
     Invokes the underlying model in order to obtain the cost and gradients for the function
     being optimized.
     """
+
     def __init__(self, model):
         self._model = model
         self._layers = [layer for layer in model._layers if layer.weights]
@@ -105,7 +112,8 @@ class ScipyOptimizer(object):
             state['in_epoch'] = True
 
         cost_sum = 0
-        iterator = trange(len(generator)) if state['verbose'] else range(len(generator))
+        iterator = trange(len(generator)) if state['verbose'] else range(
+            len(generator))
 
         state['epoch_logs'] = {}
         epoch_logs = state['epoch_logs']
@@ -118,8 +126,8 @@ class ScipyOptimizer(object):
             if not isinstance(outs, list):
                 outs = [outs]
             for lbl, v in zip(self._model.metrics_names, outs):
-                    batch_logs[lbl] = v
-                    epoch_logs[lbl] = epoch_logs.get(lbl, 0.0) + v
+                batch_logs[lbl] = v
+                epoch_logs[lbl] = epoch_logs.get(lbl, 0.0) + v
             callbacks.on_batch_end(batch_index, batch_logs)
             batch_cost = batch_logs['loss']
             if state['verbose']:
@@ -175,6 +183,10 @@ class ScipyOptimizer(object):
         def on_iteration_end(xk):
             cb = state['callbacks']
             cb.on_epoch_end(state['epoch'], state['epoch_logs'])
+            if state['verbose']:
+                epoch_logs = state['epoch_logs']
+                print('epoch: ', state['epoch'],
+                      ', '.join(['{0}: {1}'.format(k, v) for k, v in epoch_logs.items()]))
             state['epoch'] += 1
             state['in_epoch'] = False
             state['epoch_logs'] = {}
