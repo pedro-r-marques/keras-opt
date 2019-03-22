@@ -7,7 +7,7 @@ setuptools.setup(name='keras-opt',
                  url='https://github.com/pedro-r-marques/keras-opt',
                  packages=setuptools.find_packages(),
                  install_requires = [
-                     'numpy', 'tesorflow', 'scipy', 'tqdm'
+                     'numpy', 'tensorflow', 'scipy', 'tqdm'
                  ],
                  python_requires='>=3.6',
                  version='0.0.1')
