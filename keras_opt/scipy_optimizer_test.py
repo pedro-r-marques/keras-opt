@@ -15,7 +15,7 @@ from tensorflow.keras import backend as K # pylint: disable=import-error
 from scipy.sparse import dok_matrix
 from sklearn.metrics.pairwise import cosine_similarity
 
-from scipy_optimizer import ScipyOptimizer, GradientObserver
+from keras_opt.scipy_optimizer import ScipyOptimizer, GradientObserver
 
 
 class test_generator(keras.utils.Sequence):
@@ -96,8 +96,9 @@ class ScipyOptimizerTest(unittest.TestCase):
             outputs[i] = fn(inputs[i, :])
 
         opt = ScipyOptimizer(model)
-        result, _ = opt.fit(inputs, outputs, epochs=20, verbose=False)
+        result, hist = opt.fit(inputs, outputs, epochs=20, verbose=False)
         self.assertTrue(result['success'])
+        self.assertTrue(self, 'loss' in hist.history)
 
         layers = [layer for layer in model._layers if layer.weights]
         w = layers[0].get_weights()[0].reshape(-1)

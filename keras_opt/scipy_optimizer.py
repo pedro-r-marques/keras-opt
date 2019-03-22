@@ -107,18 +107,33 @@ class ScipyOptimizer(object):
         cost_sum = 0
         iterator = trange(len(generator)) if state['verbose'] else range(len(generator))
 
-        for i in iterator:
-            callbacks.on_batch_begin(i)
-            inputs, outputs = generator[i]
-            batch_cost = self._model.train_on_batch(inputs, outputs)
+        state['epoch_logs'] = {}
+        epoch_logs = state['epoch_logs']
+
+        for batch_index in iterator:
+            inputs, outputs = generator[batch_index]
+            batch_logs = {'batch': batch_index, 'size': inputs.shape[0]}
+            callbacks.on_batch_begin(batch_index, batch_logs)
+            outs = self._model.train_on_batch(inputs, outputs)
+            if not isinstance(outs, list):
+                outs = [outs]
+            for lbl, v in zip(self._model.metrics_names, outs):
+                    batch_logs[lbl] = v
+                    epoch_logs[lbl] = epoch_logs.get(lbl, 0.0) + v
+            callbacks.on_batch_end(batch_index, batch_logs)
+            batch_cost = batch_logs['loss']
             if state['verbose']:
                 iterator.set_postfix(cost=batch_cost)
-            callbacks.on_batch_end(i)
             cost_sum += batch_cost
 
         generator.on_epoch_end()
 
-        cost = cost_sum
+        # average the metrics
+        for lbl in self._model.metrics_names:
+            epoch_logs[lbl] = epoch_logs.get(lbl) / len(iterator)
+
+        cost = cost_sum / len(iterator)
+
         gradients = self._model.optimizer.get_gradient_values()
         x_grad = np.empty(x.shape)
         x_offset = 0
@@ -150,7 +165,8 @@ class ScipyOptimizer(object):
             'epoch': 0,
             'verbose': verbose,
             'callbacks': callback_list,
-            'in_epoch': False
+            'in_epoch': False,
+            'epoch_logs': {},
         }
         min_options = {
             'maxiter': epochs,
@@ -158,9 +174,10 @@ class ScipyOptimizer(object):
 
         def on_iteration_end(xk):
             cb = state['callbacks']
-            cb.on_epoch_end(state['epoch'])
+            cb.on_epoch_end(state['epoch'], state['epoch_logs'])
             state['epoch'] += 1
             state['in_epoch'] = False
+            state['epoch_logs'] = {}
 
         callback_list.on_train_begin()
         result = minimize(
