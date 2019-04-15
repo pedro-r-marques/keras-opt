@@ -15,6 +15,7 @@ class GradientObserver(keras.optimizers.Optimizer):
 
     def __init__(self):
         self._vars = []
+        self.weights = []
 
     def get_updates(self, loss, params):
         """
