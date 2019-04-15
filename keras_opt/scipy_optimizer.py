@@ -154,10 +154,44 @@ class ScipyOptimizer(object):
         self._gradients = x_grad
         return cost, x_grad
 
+    def _validate(self, x, val_generator, state):
+        # TODO: weight update should be optimized in the most common case
+        self._update_weights(x)
+        # test callback are in the newer version of the CallbackList API.
+        # callbacks = state['callbacks']
+        epoch_logs = state['epoch_logs']
+
+        # callbacks.on_test_begin()
+
+        val_outs = [0] * len(self._model.metrics_names)
+        n_steps = len(val_generator)
+        for batch_index in range(n_steps):
+            inputs, outputs = val_generator[batch_index]
+            batch_logs = {'batch': batch_index, 'size': inputs.shape[0]}
+
+            # callbacks.on_test_batch_begin(batch_index, batch_logs)
+            batch_outs = self._model.test_on_batch(inputs, outputs)
+            if not isinstance(batch_outs, list):
+                batch_outs = [batch_outs]
+            for l, o in zip(self._model.metrics_names, batch_outs):
+                batch_logs[l] = o
+            # callbacks.on_test_batch_end(batch_index, batch_logs)
+            for i, batch_out in enumerate(batch_outs):
+                val_outs[i] += batch_out
+
+        for l, o in zip(self._model.metrics_names, val_outs):
+            o /= n_steps
+            epoch_logs['val_' + l] = o
+
+        # callbacks.on_test_end()
+
     def fit(self, inputs, outputs, **kwargs):
         return self.fit_generator(GeneratorWrapper(inputs, outputs), **kwargs)
 
-    def fit_generator(self, generator, method='cg', epochs=1, callbacks=None, verbose=True):
+    def fit_generator(self, generator, method='cg', epochs=1,
+                      validation_data=None,
+                      callbacks=None,
+                      verbose=True):
         x0 = self._collect_weights()
         history = History()
         _callbacks = [BaseLogger(stateful_metrics=self._model.metrics_names)]
@@ -167,7 +201,7 @@ class ScipyOptimizer(object):
         callback_list.set_params({
             'epochs': epochs,
             'verbose': verbose,
-            'metrics': ['loss'],
+            'metrics': list(self._model.metrics_names),
         })
         state = {
             'epoch': 0,
@@ -180,8 +214,17 @@ class ScipyOptimizer(object):
             'maxiter': epochs,
         }
 
+        val_generator = None
+        if validation_data is not None:
+            if isinstance(validation_data, keras.utils.Sequence):
+                val_generator = validation_data
+            elif isinstance(validation_data, tuple) and len(validation_data) == 2:
+                val_generator = GeneratorWrapper(*validation_data)
+
         def on_iteration_end(xk):
             cb = state['callbacks']
+            if val_generator is not None:
+                self._validate(xk, val_generator, state)
             cb.on_epoch_end(state['epoch'], state['epoch_logs'])
             if state['verbose']:
                 epoch_logs = state['epoch_logs']

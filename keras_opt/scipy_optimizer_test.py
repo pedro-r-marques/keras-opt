@@ -100,7 +100,7 @@ class ScipyOptimizerTest(unittest.TestCase):
         opt = ScipyOptimizer(model)
         result, hist = opt.fit(inputs, outputs, epochs=20, verbose=False)
         self.assertTrue(result['success'])
-        self.assertTrue(self, 'loss' in hist.history)
+        self.assertTrue('loss' in hist.history)
 
         layers = [layer for layer in model._layers if layer.weights]
         w = layers[0].get_weights()[0].reshape(-1)
@@ -165,6 +165,37 @@ class ScipyOptimizerTest(unittest.TestCase):
         result, _ = opt.fit(X_train, y_train, epochs=20, verbose=False)
         self.assertTrue(result['success'])
         self.assertLessEqual(model.test_on_batch(X_test, y_test), 1.0e-5)
+
+    def test_val_data(self):
+        def test_fn(x):
+            if x > 0.8:
+                return 2
+            return 0
+
+        def make_model():
+            inp = Input(shape=(1,))
+            h_layer = Dense(1,
+                            kernel_initializer=keras.initializers.RandomUniform(
+                                0.0, 1.0),
+                            activation='relu')(inp)
+            outp = Dense(1, activation='sigmoid')(h_layer)
+            return Model(inp, outp)
+
+        model = make_model()
+        model.compile(optimizer=GradientObserver(),
+                      loss='mse', metrics=['mae'])
+        opt = ScipyOptimizer(model)
+        X = np.random.rand(200)
+        y = np.vectorize(test_fn)(X)
+        X_train, X_test, y_train, y_test = train_test_split(
+            X, y, test_size=0.20, random_state=42)
+
+        result, hist = opt.fit(X_train, y_train, epochs=20,
+                               validation_data=(X_test, y_test), verbose=False)
+        self.assertTrue(result['success'])
+        print(hist.history.keys())
+        self.assertTrue('val_loss' in hist.history)
+        self.assertTrue('val_mean_absolute_error' in hist.history)
 
 
 if __name__ == '__main__':
