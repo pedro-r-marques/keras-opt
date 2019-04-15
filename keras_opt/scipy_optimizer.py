@@ -75,7 +75,7 @@ class ScipyOptimizer(object):
         self._weights_size = 0
         for layer in self._layers:
             for w in layer.weights:
-                self._weights_size += w.shape[0] * w.shape[1]
+                self._weights_size += np.prod(w.shape)
 
     def _update_weights(self, x):
         x_offset = 0
@@ -83,7 +83,7 @@ class ScipyOptimizer(object):
             w_list = []
             for w in layer.weights:
                 shape = w.get_shape()
-                w_size = shape[0] * shape[1]
+                w_size = np.prod(shape)
                 w_list.append(
                     np.array(x[x_offset:x_offset+w_size]).reshape(shape))
                 x_offset += w_size

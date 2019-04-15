@@ -8,12 +8,13 @@ import numpy.testing
 
 import tensorflow as tf
 from tensorflow import keras
-from tensorflow.keras.layers import Embedding, Dense, Dot, Input, Lambda # pylint: disable=import-error
-from tensorflow.keras.models import Sequential, Model # pylint: disable=import-error
-from tensorflow.keras import backend as K # pylint: disable=import-error
+from tensorflow.keras.layers import Embedding, Dense, Dot, Input, Lambda  # pylint: disable=import-error
+from tensorflow.keras.models import Sequential, Model  # pylint: disable=import-error
+from tensorflow.keras import backend as K  # pylint: disable=import-error
 
 from scipy.sparse import dok_matrix
 from sklearn.metrics.pairwise import cosine_similarity
+from sklearn.model_selection import train_test_split
 
 from keras_opt.scipy_optimizer import ScipyOptimizer, GradientObserver
 
@@ -78,7 +79,8 @@ class ScipyOptimizerTest(unittest.TestCase):
         random.seed(0)
         np.random.seed(0)
         tf.set_random_seed(0)
-        self._session = tf.Session(config=tf.ConfigProto(device_count={'GPU': 0}))
+        self._session = tf.Session(
+            config=tf.ConfigProto(device_count={'GPU': 0}))
         K.set_session(self._session)
 
     def test_lr(self):
@@ -136,6 +138,33 @@ class ScipyOptimizerTest(unittest.TestCase):
         opt = ScipyOptimizer(model)
         result, _ = opt.fit_generator(generator, epochs=200, verbose=False)
         self.assertLess(result['fun'], 1.0e-3)
+
+    def test_1dim(self):
+        def test_fn(x):
+            if x > 0.5:
+                return 1
+            return 0
+
+        def make_model():
+            inp = Input(shape=(1,))
+            h_layer = Dense(1,
+                            kernel_initializer=keras.initializers.RandomUniform(
+                                0.0, 1.0),
+                            activation='relu')(inp)
+            outp = Dense(1, activation='sigmoid')(h_layer)
+            return Model(inp, outp)
+
+        model = make_model()
+        model.compile(optimizer=GradientObserver(), loss='mse')
+        opt = ScipyOptimizer(model)
+        X = np.random.rand(100)
+        y = np.vectorize(test_fn)(X)
+        X_train, X_test, y_train, y_test = train_test_split(
+            X, y, test_size=0.20, random_state=42)
+
+        result, _ = opt.fit(X_train, y_train, epochs=20, verbose=False)
+        self.assertTrue(result['success'])
+        self.assertLessEqual(model.test_on_batch(X_test, y_test), 1.0e-5)
 
 
 if __name__ == '__main__':
