@@ -121,7 +121,11 @@ class ScipyOptimizer(object):
 
         for batch_index in iterator:
             inputs, outputs = generator[batch_index]
-            batch_logs = {'batch': batch_index, 'size': inputs.shape[0]}
+            if isinstance(inputs, list):
+                isize = inputs[0].shape[0]
+            else:
+                isize = inputs.shape[0]
+            batch_logs = {'batch': batch_index, 'size': isize}
             callbacks.on_batch_begin(batch_index, batch_logs)
             outs = self._model.train_on_batch(inputs, outputs)
             if not isinstance(outs, list):

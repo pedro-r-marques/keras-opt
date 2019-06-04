@@ -8,7 +8,7 @@ import numpy.testing
 
 import tensorflow as tf
 from tensorflow import keras
-from tensorflow.keras.layers import Embedding, Dense, Dot, Input, Lambda  # pylint: disable=import-error
+from tensorflow.keras.layers import Concatenate, Embedding, Dense, Dot, Input, Lambda  # pylint: disable=import-error
 from tensorflow.keras.models import Sequential, Model  # pylint: disable=import-error
 from tensorflow.keras import backend as K  # pylint: disable=import-error
 
@@ -196,6 +196,27 @@ class ScipyOptimizerTest(unittest.TestCase):
         print(hist.history.keys())
         self.assertTrue('val_loss' in hist.history)
         self.assertTrue('val_mean_absolute_error' in hist.history)
+
+    def test_mult_inputs(self):
+        def test_fn(x, y):
+            return 2.0 * x + 4.0 * y + 1.0
+
+        def make_model():
+            x = Input(shape=(1, ))
+            y = Input(shape=(1, ))
+            join = Concatenate()([x, y])
+            z = Dense(1)(join)
+            return Model([x, y], z)
+
+        model = make_model()
+        model.compile(optimizer=GradientObserver(), loss='mse')
+        opt = ScipyOptimizer(model)
+        X = np.random.rand(10)
+        Y = np.random.rand(10)
+        Z = np.vectorize(test_fn)(X, Y)
+
+        result, _ = opt.fit([X, Y], Z, epochs=100, verbose=False)
+        self.assertTrue(result['success'])
 
 
 if __name__ == '__main__':
