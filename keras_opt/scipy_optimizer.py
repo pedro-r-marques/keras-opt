@@ -76,27 +76,39 @@ class ScipyOptimizer(object):
         self._weights_size = 0
         for layer in self._layers:
             for w in layer.weights:
+                if not w.trainable:
+                    continue
                 self._weights_size += np.prod(w.shape)
 
     def _update_weights(self, x):
         x_offset = 0
         for layer in self._layers:
             w_list = []
+            w_trainable = [w.trainable for w in layer.weights]
+            batch_update = False not in w_trainable
             for w in layer.weights:
+                if not w.trainable:
+                    continue
                 shape = w.get_shape()
                 w_size = np.prod(shape)
-                w_list.append(
-                    np.array(x[x_offset:x_offset+w_size]).reshape(shape))
+                value = np.array(x[x_offset:x_offset+w_size]).reshape(shape)
+                if batch_update:
+                    w_list.append(value)
+                else:
+                    K.set_value(w, value)
                 x_offset += w_size
-            layer.set_weights(w_list)
+            if batch_update:
+                layer.set_weights(w_list)
         assert x_offset == self._weights_size
 
     def _collect_weights(self):
         x_values = np.empty(self._weights_size)
         x_offset = 0
         for layer in self._layers:
-            vars = layer.get_weights()
-            for var in vars:
+            w_trainable = [w.trainable for w in layer.weights]
+            for var, trainable in zip(layer.get_weights(), w_trainable):
+                if not trainable:
+                    continue
                 w_size = var.size
                 x_values[x_offset:x_offset+w_size] = var.reshape(-1)
                 x_offset += w_size

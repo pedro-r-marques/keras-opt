@@ -8,7 +8,7 @@ import numpy.testing
 
 import tensorflow as tf
 from tensorflow import keras
-from tensorflow.keras.layers import Concatenate, Embedding, Dense, Dot, Input, Lambda  # pylint: disable=import-error
+from tensorflow.keras.layers import BatchNormalization, Concatenate, Embedding, Dense, Dot, Input, Lambda  # pylint: disable=import-error
 from tensorflow.keras.models import Sequential, Model  # pylint: disable=import-error
 from tensorflow.keras import backend as K  # pylint: disable=import-error
 
@@ -190,9 +190,9 @@ class ScipyOptimizerTest(unittest.TestCase):
         X_train, X_test, y_train, y_test = train_test_split(
             X, y, test_size=0.20, random_state=42)
 
-        result, hist = opt.fit(X_train, y_train, epochs=20,
+        result, hist = opt.fit(X_train, y_train, epochs=50,
                                validation_data=(X_test, y_test), verbose=False)
-        self.assertTrue(result['success'])
+        self.assertLessEqual(result['fun'], 0.2)
         print(hist.history.keys())
         self.assertTrue('val_loss' in hist.history)
         self.assertTrue('val_mean_absolute_error' in hist.history)
@@ -217,6 +217,29 @@ class ScipyOptimizerTest(unittest.TestCase):
 
         result, _ = opt.fit([X, Y], Z, epochs=100, verbose=False)
         self.assertTrue(result['success'])
+
+    def test_non_trainable(self):
+        """BatchNormalization uses non-trainable weights.
+        """
+        model = Sequential()
+        model.add(Dense(3, use_bias=False, input_dim=4))
+        model.add(BatchNormalization())
+        model.add(Dense(1, use_bias=False))
+        model.compile(optimizer=GradientObserver(), loss='mse')
+
+        def fn(vec):
+            a, b, c, d = vec
+            return a*b + 2*b + 3*c + d
+
+        inputs = np.random.rand(10, 4)
+        outputs = np.zeros(inputs.shape[0])
+        for i in range(inputs.shape[0]):
+            outputs[i] = fn(inputs[i, :])
+
+        opt = ScipyOptimizer(model)
+        result, _ = opt.fit(inputs, outputs, epochs=30, verbose=False)
+        self.assertLessEqual(result['fun'], 1.0e3)
+        self.assertEqual(result['status'], 2)
 
 
 if __name__ == '__main__':
