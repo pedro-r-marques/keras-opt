@@ -237,9 +237,9 @@ class ScipyOptimizerTest(unittest.TestCase):
             outputs[i] = fn(inputs[i, :])
 
         opt = ScipyOptimizer(model)
-        result, _ = opt.fit(inputs, outputs, epochs=30, verbose=False)
+        result, _ = opt.fit(inputs, outputs, epochs=50, verbose=False)
         self.assertLessEqual(result['fun'], 1.0e3)
-        self.assertEqual(result['status'], 2)
+        self.assertEqual(result['status'], 2, result['message'])
 
 
 if __name__ == '__main__':
