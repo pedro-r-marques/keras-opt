@@ -3,19 +3,20 @@ from scipy.optimize import minimize
 from tensorflow import keras
 from tensorflow.keras import backend as K  # pylint: disable=import-error
 from tensorflow.python.keras.callbacks import BaseLogger, CallbackList, History  # pylint: disable=no-name-in-module
+from tensorflow.python.keras.optimizer_v2 import optimizer_v2   # pylint: disable=no-name-in-module
 
 from tqdm import trange, tqdm_notebook
 
 
-class GradientObserver(keras.optimizers.Optimizer):
+class GradientObserver(optimizer_v2.OptimizerV2):
     """
     Implements the Keras Optimizer interface in order to accumulate gradients for
     each mini batch. Gradients are then read at the end of the epoch by the ScipyOptimizer. 
     """
 
     def __init__(self):
+        super(GradientObserver, self).__init__('GradientObserver')
         self._vars = []
-        self.weights = []
 
     def get_updates(self, loss, params):
         """
@@ -45,6 +46,10 @@ class GradientObserver(keras.optimizers.Optimizer):
         """
         for var in self._vars:
             K.set_value(var, np.zeros(var.shape))
+
+    def get_config(self):
+        config = super(GradientObserver, self).get_config()
+        return config
 
 
 class GeneratorWrapper(keras.utils.Sequence):
