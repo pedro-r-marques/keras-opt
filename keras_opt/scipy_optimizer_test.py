@@ -78,10 +78,7 @@ class ScipyOptimizerTest(unittest.TestCase):
     def setUp(self):
         random.seed(0)
         np.random.seed(0)
-        tf.set_random_seed(0)
-        self._session = tf.Session(
-            config=tf.ConfigProto(device_count={'GPU': 0}))
-        K.set_session(self._session)
+        tf.random.set_seed(0)
 
     def test_lr(self):
         model = Sequential()
@@ -98,7 +95,7 @@ class ScipyOptimizerTest(unittest.TestCase):
             outputs[i] = fn(inputs[i, :])
 
         opt = ScipyOptimizer(model)
-        result, hist = opt.fit(inputs, outputs, epochs=20, verbose=False)
+        result, hist = opt.fit(inputs, outputs, epochs=30, verbose=False)
         self.assertTrue(result['success'])
         self.assertTrue('loss' in hist.history)
 
@@ -195,7 +192,8 @@ class ScipyOptimizerTest(unittest.TestCase):
         self.assertLessEqual(result['fun'], 0.2)
         print(hist.history.keys())
         self.assertTrue('val_loss' in hist.history)
-        self.assertTrue('val_mean_absolute_error' in hist.history)
+        self.assertTrue('val_mean_absolute_error' in hist.history or
+                        'val_mae' in hist.history)
 
     def test_mult_inputs(self):
         def test_fn(x, y):
