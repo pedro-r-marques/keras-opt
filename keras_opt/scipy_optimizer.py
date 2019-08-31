@@ -17,6 +17,7 @@ class GradientObserver(optimizer_v2.OptimizerV2):
     def __init__(self):
         super(GradientObserver, self).__init__('GradientObserver')
         self._vars = []
+        self._grads = {}
 
     def get_updates(self, loss, params):
         """
@@ -36,6 +37,8 @@ class GradientObserver(optimizer_v2.OptimizerV2):
         Read gradient values (at epoch end).
         """
         values = []
+        for g in self._grads.values():
+            values.append(K.eval(g))
         for v in self._vars:
             values.append(K.eval(v))
         return values
@@ -44,8 +47,25 @@ class GradientObserver(optimizer_v2.OptimizerV2):
         """
         Clear gradient values (used at epoch start)
         """
+        self._grads = {}
         for var in self._vars:
             K.set_value(var, np.zeros(var.shape))
+
+    def _create_slots(self, var_list):
+        pass
+
+    def _resource_apply_dense(self, grad, var, **apply_kwargs):
+        self._grads[var.name] = grad
+
+    def _resource_apply_sparse(self, grad, handle, indices, apply_state):
+        if handle.name in self._grads:
+            dense_grad = self._grads[handle.name]
+        else:
+            dense_grad = np.zeros(handle.shape.as_list())
+            self._grads[handle.name] = dense_grad
+
+        for i, idx in enumerate(indices.numpy()):
+            dense_grad[idx] += grad[i]
 
     def get_config(self):
         config = super(GradientObserver, self).get_config()
