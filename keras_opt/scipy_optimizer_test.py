@@ -105,7 +105,7 @@ class ScipyOptimizerTest(unittest.TestCase):
             outputs[i] = fn(inputs[i, :])
 
         model.train_function = scipy_optimizer.make_train_function(
-            model, maxiter=30)
+            model, verbose=0, maxiter=30)
         hist = model.fit(inputs, outputs, epochs=1, verbose=False)
         self.assertTrue('loss' in hist.history)
 
@@ -130,7 +130,7 @@ class ScipyOptimizerTest(unittest.TestCase):
             outputs[i] = fn(inputs[i, :])
 
         model.train_function = scipy_optimizer.make_train_function(
-            model, maxiter=20)
+            model, verbose=0, maxiter=20)
         hist = model.fit(inputs, outputs, epochs=1, verbose=False)
         self.assertTrue('loss' in hist.history)
 
@@ -156,7 +156,7 @@ class ScipyOptimizerTest(unittest.TestCase):
             outputs[i] = fn(inputs[i, :])
 
         model.train_function = scipy_optimizer.make_train_function(
-            model, maxiter=15)
+            model, verbose=0, maxiter=15)
         model.fit(inputs, outputs, verbose=False)
 
         pred = model.predict(inputs)
@@ -171,7 +171,7 @@ class ScipyOptimizerTest(unittest.TestCase):
         generator = MatrixDataGenerator(matrix.tocoo())
         model = make_embedding_model(matrix.shape, 3)
         model.train_function = scipy_optimizer.make_train_function(
-            model, maxiter=200)
+            model, verbose=0, maxiter=200)
         hist = model.fit(generator, verbose=False)
         self.assertLess(hist.history['loss'][-1], 1.0e-3)
 
@@ -182,7 +182,7 @@ class ScipyOptimizerTest(unittest.TestCase):
         generator = MatrixDataGenerator(matrix.tocoo())
         model = make_embedding_model(matrix.shape, 3)
         model.train_function = scipy_optimizer.make_train_function(
-            model, method='bfgs', maxiter=200)
+            model, method='bfgs', verbose=0, maxiter=200)
         hist = model.fit(generator, verbose=False)
         self.assertLess(hist.history['loss'][-1], 1.0e-3)
 
@@ -205,7 +205,7 @@ class ScipyOptimizerTest(unittest.TestCase):
         model = make_model()
         model.compile(loss='mse')
         model.train_function = scipy_optimizer.make_train_function(
-            model, maxiter=15)
+            model, verbose=0, maxiter=15)
 
         X = np.random.rand(100)  # pylint: disable=invalid-name
         y = np.vectorize(test_fn)(X)
@@ -240,7 +240,7 @@ class ScipyOptimizerTest(unittest.TestCase):
             X, y, test_size=0.20, random_state=42)
 
         model.train_function = scipy_optimizer.make_train_function(
-            model, maxiter=50)
+            model, verbose=0, maxiter=50)
         hist = model.fit(X_train, y_train,
                          validation_data=(X_test, y_test), verbose=False)
         self.assertLessEqual(hist.history['loss'][-1], 0.2)
@@ -268,7 +268,7 @@ class ScipyOptimizerTest(unittest.TestCase):
         Z = np.vectorize(test_fn)(X, Y)  # pylint: disable=invalid-name
 
         model.train_function = scipy_optimizer.make_train_function(
-            model, maxiter=100)
+            model, verbose=0, maxiter=100)
 
         hist = model.fit([X, Y], Z, verbose=False)
         self.assertLess(hist.history['loss'][-1], 0.1)
@@ -292,7 +292,7 @@ class ScipyOptimizerTest(unittest.TestCase):
             outputs[i] = fn(inputs[i, :])
 
         model.train_function = scipy_optimizer.make_train_function(
-            model, maxiter=50)
+            model, verbose=0, maxiter=50)
         hist = model.fit(inputs, outputs, verbose=False)
         self.assertLessEqual(hist.history['loss'][-1], 1.0e3)
 

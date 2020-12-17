@@ -4,6 +4,7 @@ import numpy as np
 from scipy.optimize import minimize
 import tensorflow as tf
 
+from tensorflow import keras
 from tensorflow.keras import backend as K  # pylint: disable=import-error
 
 from tensorflow.python.keras.engine import data_adapter
@@ -18,9 +19,10 @@ class ScipyOptimizer():
         all steps and then returns the gradient information to the optimizer.
     """
 
-    def __init__(self, model, method='cg', maxiter=1):
+    def __init__(self, model, method='cg', verbose=1, maxiter=1):
         self.model = model
         self.method = method
+        self.verbose = verbose
         self.maxiter = maxiter
         if model.run_eagerly:
             self.func = model.__call__
@@ -51,19 +53,28 @@ class ScipyOptimizer():
         assert dataset is not None
         iterator = iter(dataset)
 
+        size = dataset.cardinality().numpy()
+        if size > 0:
+            n_steps = (size + dataset.batch_size - 1) // dataset.batch_size
+        else:
+            n_steps = None
+
+        progbar = keras.utils.Progbar(n_steps, verbose=self.verbose)
+
         with tf.GradientTape() as tape:
-            for data in iterator:
+            for step, data in enumerate(iterator):
                 data = data_adapter.expand_1d(data)
                 x, y, sample_weight = data_adapter.unpack_x_y_sample_weight(
                     data)
                 y_pred = self.func(x, training=True)
                 loss = model.compiled_loss(y, y_pred, sample_weight,
                                            regularization_losses=model.losses)
+                progbar.update(step, [('loss', loss.numpy())])
                 losses.append(loss)
-            xloss = tf.stack(losses)
+            xloss = tf.reduce_mean(tf.stack(losses))
             grads = tape.gradient(xloss, model.trainable_variables)
 
-        cost = tf.reduce_mean(xloss).numpy()
+        cost = xloss.numpy()
 
         if all(isinstance(x, tf.Tensor) for x in grads):
             xgrads = np.concatenate([x.numpy().reshape(-1) for x in grads])
@@ -85,7 +96,8 @@ class ScipyOptimizer():
         """ Called by model fit.
         """
         min_options = {
-            'maxiter': self.maxiter
+            'maxiter': self.maxiter,
+            'disp': bool(self.verbose),
         }
 
         var_list = self.model.trainable_variables
