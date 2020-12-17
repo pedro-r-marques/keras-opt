@@ -19,7 +19,7 @@ from sklearn.model_selection import train_test_split
 import keras_opt.scipy_optimizer as scipy_optimizer
 
 
-class TestGenerator(keras.utils.Sequence):
+class MatrixDataGenerator(keras.utils.Sequence):
     """ Generate test data.
     """
     def __init__(self, matrix, batch_size=32):
@@ -168,10 +168,21 @@ class ScipyOptimizerTest(unittest.TestCase):
         """ Embedding generation using generators.
         """
         matrix = make_test_matrix((10, 10), 50)
-        generator = TestGenerator(matrix.tocoo())
+        generator = MatrixDataGenerator(matrix.tocoo())
         model = make_embedding_model(matrix.shape, 3)
         model.train_function = scipy_optimizer.make_train_function(
             model, maxiter=200)
+        hist = model.fit(generator, verbose=False)
+        self.assertLess(hist.history['loss'][-1], 1.0e-3)
+
+    def test_bfgs(self):
+        """ Embedding generation using method bfgs.
+        """
+        matrix = make_test_matrix((10, 10), 50)
+        generator = MatrixDataGenerator(matrix.tocoo())
+        model = make_embedding_model(matrix.shape, 3)
+        model.train_function = scipy_optimizer.make_train_function(
+            model, method='bfgs', maxiter=200)
         hist = model.fit(generator, verbose=False)
         self.assertLess(hist.history['loss'][-1], 1.0e-3)
 
