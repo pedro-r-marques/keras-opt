@@ -10,7 +10,7 @@ import numpy.testing
 
 import tensorflow as tf
 from tensorflow import keras
-from tensorflow.keras.layers import BatchNormalization, Concatenate, Embedding, Dense, Dot, Input, Lambda  # pylint: disable=import-error
+from tensorflow.keras.layers import BatchNormalization, Concatenate, Embedding, Dense, Dot, Input, InputLayer, Lambda  # pylint: disable=import-error
 from tensorflow.keras.models import Sequential, Model  # pylint: disable=import-error
 
 from scipy.sparse import dok_matrix
@@ -22,6 +22,7 @@ import keras_opt.scipy_optimizer as scipy_optimizer
 class MatrixDataGenerator(keras.utils.Sequence):
     """ Generate test data.
     """
+
     def __init__(self, matrix, batch_size=32):
         self._matrix = matrix
         self._batch_size = batch_size
@@ -83,6 +84,7 @@ def make_embedding_model(shape, embedding_size):
 class ScipyOptimizerTest(unittest.TestCase):
     """ Unit tests for the scipy_optimizer module.
     """
+
     def setUp(self):
         random.seed(0)
         np.random.seed(0)
@@ -137,6 +139,32 @@ class ScipyOptimizerTest(unittest.TestCase):
         layers = [layer for layer in model.layers if layer.weights]
         w = layers[0].get_weights()[0].reshape(-1)
         numpy.testing.assert_almost_equal(w, [4.0, 2.0, 3.0, 1.0], decimal=4)
+
+    def test_graph_mode(self):
+        """ Ensure that the model is executed in graph mode.
+        """
+        def custom_layer(x):
+            assert not tf.executing_eagerly()
+            return tf.reduce_sum(x, axis=-1)
+
+        model = Sequential()
+        model.add(InputLayer(input_shape=(4,)))
+        model.add(Dense(2))
+        model.add(Lambda(custom_layer))
+        model.compile(loss="mse")
+
+        def objective_fn(x):
+            a = np.dot(x, np.array([1, 2, 3, 4])[:, np.newaxis])
+            b = np.dot(x, np.array([5, 6, 7, 8])[:, np.newaxis])
+            return a + b
+
+        x_data = np.random.uniform(size=40).reshape(10, 4)
+        y = np.apply_along_axis(objective_fn, -1, x_data)
+
+        model.train_function = scipy_optimizer.make_train_function(
+            model, verbose=0, maxiter=25)
+        hist = model.fit(x_data, y, epochs=1, verbose=False)
+        self.assertLess(hist.history['loss'][-1], 1.0e-3)
 
     def test_2layer(self):
         """ logistic regression using an hidden layer
